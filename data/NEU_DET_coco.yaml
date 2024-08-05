@@ -1,0 +1,25 @@
+# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
+# COCO128 dataset https://www.kaggle.com/ultralytics/coco128 (first 128 images from COCO train2017) by Ultralytics
+# Example usage: python train.py --data coco128.yaml
+# parent
+# ├── yolov5
+# └── datasets
+#     └── coco128  ← downloads here
+
+
+# 数据集源路径root、训练集、验证集、测试集地址
+#path: ../datasets/Basic_data  # 数据集源路径root dir
+#train: Images/train  # root下的训练集地址 128 images
+#val: Images/val  # root下的验证集地址 128 images
+#test:  # root下的验证集地址 128 images
+
+train: D:\pythontorch\yolov5-6.1\datasets\Basic_data\images\train  # root下的训练集地址 128 images
+val: D:\pythontorch\yolov5-6.1\datasets\Basic_data\images\val  # root下的验证集地址 128 images
+
+# 数据集类别信息
+nc: 6  # number of classes
+names: ["crazing", "inclusion", "patches", "pitted_surface", "rolled-in_scale", "scratches"]  # class names
+
+
+## 数据集下载地址
+#download: https://ultralytics.com/assets/coco128.zip

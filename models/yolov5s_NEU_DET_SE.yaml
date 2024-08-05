@@ -1,0 +1,73 @@
+# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
+
+# Parameters
+nc: 6  # number of classes
+depth_multiple: 0.33  # model depth multiple
+width_multiple: 0.50  # layer channel multiple
+
+# depth_multiple：表示BottleneckCSP模块的缩放因子，将所有BottleneckCSP模块的Bottleneck乘上该参数得到最终个数。
+# width_multiple：表示卷积通道的缩放因子，就是将配置里面的backbone和head部分有关Conv通道的设置，全部乘以该系数。
+# 通过这两个参数就可以实现不同复杂度的模型设计。
+
+# yolov5初始化了9个anchors，在三个Detect层使用（3个feature map）中使用，每个feature map的每个grid_cell都有三个anchor进行预测。
+# 分配的规则是：尺度越大的feature map越靠前:
+    #  相对原图的下采样率越小，感受野越小，所以相对可以预测一些尺度比较小的物体，所有分配到的anchors越小；
+    #  尺度越小的feature map越靠后，相对原图的下采样率越大，感受野越大，
+    #  所以相对可以预测一些尺度比较大的物体，所有分配到的anchors越大。即可以在小特征图（feature map）上检测大目标，也可以在大特征图上检测小目标。
+
+# yolov5根据工程经验得到了这么3组anchors，对于很多数据集而言确实挺合适的。
+# 但是也不能保证这3组anchors就适用于所有的数据集，所有yolov5还有一个anchor进化的策略：使用k-means和遗传进化算法，找到与当前数据集最吻合的anchors
+
+anchors:
+  - [10,13, 16,30, 33,23]  # P3/8
+  - [30,61, 62,45, 59,119]  # P4/16
+  - [116,90, 156,198, 373,326]  # P5/32
+
+# YOLOv5 v6.0 backbone
+backbone:
+  # [from, number, module, args]
+    # from：表示当前模块的输入来自那一层的输出，-1表示来自上一层的输出。
+    # number：表示本模块的理论重复次数，1表示只有一个，3表示重复3次。实际的重复次数:number×depth_multiple
+    # module：模块名，通过这个类名去common.py中寻找相应的类，进行模块化的搭建网络。
+    # args: 在网络搭建过程中根据不同层进行改变，是模块搭建所需参数的列表，包括channel，kernel_size，stride，padding，bias等。
+  [[-1, 1, Conv, [64, 6, 2, 2]],  # 0-P1/2
+   [-1, 1, Conv, [128, 3, 2]],  # 1-P2/4
+   [-1, 3, C3, [128]],
+   [-1, 1, Conv, [256, 3, 2]],  # 3-P3/8
+   [-1, 6, C3, [256]],
+   [-1, 1, Conv, [512, 3, 2]],  # 5-P4/16
+   [-1, 9, C3, [512]],
+   [-1, 1, Conv, [1024, 3, 2]],  # 7-P5/32
+   [-1, 3, C3, [1024]],
+   [-1, 1, SE, [1024]],
+   [-1, 1, SPPF, [1024, 5]],  # 9
+  ]
+
+# YOLOv5 6.0
+# head = PANet+Detect 作者没有区分neck模块，所以head部分包含了PANet+Detect部分
+# [from, number, module, args]
+  # from: 表示当前模块的输入来自那一层的输出，-1表示来自上一层的输出。不过这里可以为list，就是这层的输入由所层输出concat而来。
+  # number：表示本模块的理论重复次数，1表示只有一个，3表示重复3次。实际的重复次数:number×depth_multiple
+  # module：模块类名，通过这个类名去common.py中寻找相应的类，进行模块化的搭建网络。
+  # args：是一个list，是模块搭建所需参数的列表，包括channel，kernel_size，stride，padding，bias等
+head:
+  [[-1, 1, Conv, [512, 1, 1]], #10
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+   [[-1, 6], 1, Concat, [1]],  # cat backbone P4
+   [-1, 3, C3, [512, False]],  # 13
+
+   [-1, 1, Conv, [256, 1, 1]],
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+   [[-1, 4], 1, Concat, [1]],  # cat backbone P3
+   [-1, 3, C3, [256, False]],  # 17 (P3/8-small)
+
+   [-1, 1, Conv, [256, 3, 2]],
+   [[-1, 14], 1, Concat, [1]],  # cat head P4
+   [-1, 3, C3, [512, False]],  # 20 (P4/16-medium)
+
+   [-1, 1, Conv, [512, 3, 2]],
+   [[-1, 10], 1, Concat, [1]],  # cat head P5
+   [-1, 3, C3, [1024, False]],  # 23 (P5/32-large)
+   [[18, 21, 24], 1, Detect, [nc, anchors]],  # 24 # Detect(P3, P4, P5)
+#   [[17, 20, 23], 1, Detect, [nc, anchors]],  # 24 # Detect(P3, P4, P5)
+  ]
